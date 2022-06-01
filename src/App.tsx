@@ -9,67 +9,58 @@ import {
   ListItem,
   Text,
 } from "@chakra-ui/react";
-import CodeEditor from "@uiw/react-textarea-code-editor";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { ScrollSync, ScrollSyncPane } from "react-scroll-sync";
-
-const code = "const a = 0;";
-
-function Feature({ title, desc, ...rest }: any) {
-  return (
-    <Box p={5} shadow="md" borderWidth="1px" {...rest} bgColor="#ffffff38">
-      <Heading fontSize="xl">{title}</Heading>
-      <Text mt={4}>{desc}</Text>
-    </Box>
-  );
-}
+import Uploader from "./Uploader";
+import Transformer from "./Transformer";
 
 const CodeWindow = (props: any) => {
-  const [code, setCode] = useState(`function add(a, b) {\n  return a + b;\n}`);
-
   return (
     <>
-      <Grid templateRows="auto 250px auto" gap="2">
-        <Box>
-          <Text>Input/Output</Text>
+      <ScrollSyncPane>
+        <Box
+          pl={5}
+          shadow="md"
+          borderWidth="1px"
+          bgColor="#ffffff38"
+          overflow="overlay"
+        >
+          <CodeMirror
+            value={
+              props.siblingCode === undefined
+                ? props.code
+                : Transformer(props.siblingCode)
+            }
+            extensions={[javascript({ jsx: true })]}
+            onChange={(value, viewUpdate) => {
+              console.log("value:", value);
+              if (props.callbackFromParent) props.callbackFromParent(value);
+            }}
+          />
         </Box>
-        <ScrollSyncPane>
-          <Box bgColor="#f5f5f5" border="5px solid #a4b0be" overflow="overlay">
-            <CodeMirror
-              value={
-                "console.log('hello world!');" + props.siblingCode
-                  ? props.siblingCode
-                  : ""
-              }
-              extensions={[javascript({ jsx: true })]}
-              onChange={(value, viewUpdate) => {
-                console.log("value:", value);
-                if (props.callbackFromParent) props.callbackFromParent(value);
-              }}
-            />
-          </Box>
-        </ScrollSyncPane>
-        <Box>
-          <Button colorScheme="blue">Button</Button>
-        </Box>
-      </Grid>
+      </ScrollSyncPane>
     </>
   );
 };
 
 function App() {
-  const [count, setCount] = useState(0);
-  const [siblingCode, setSiblingCode] = useState("");
+  const [siblingCode, setSiblingCode] = useState(
+    "console.log('hello world!');"
+  );
+  const [code, setCode] = useState("console.log('hello world!');");
   const callback = (code: any) => {
     setSiblingCode(code);
+  };
+  const codeCallback = (code: string) => {
+    setCode(code);
   };
 
   return (
     <>
       <ScrollSync>
         <Grid
-          templateRows="auto 50% auto"
+          templateRows="auto 100% auto"
           h="100%"
           gap="6"
           minWidth="600px"
@@ -83,10 +74,11 @@ function App() {
               A simple but powerful deobfuscator to remove common JavaScript
               obfuscation techniques
             </Text>
+            <Uploader codeCallback={codeCallback} />
           </Box>
-          <Box bg="tomato" m="1em" p="1em" borderRadius="5">
-            <Grid templateColumns="auto auto" gap="6" h="100%">
-              <CodeWindow callbackFromParent={callback} />
+          <Box m="1em" borderRadius="5">
+            <Grid templateColumns="50% 50%" gap="6" h="100%">
+              <CodeWindow callbackFromParent={callback} code={code} />
               <CodeWindow siblingCode={siblingCode} />
             </Grid>
           </Box>
