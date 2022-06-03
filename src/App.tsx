@@ -34,7 +34,6 @@ const CodeWindow = (props: any) => {
             }
             extensions={[javascript({ jsx: true })]}
             onChange={(value, viewUpdate) => {
-              console.log("value:", value);
               if (props.callbackFromParent) props.callbackFromParent(value);
             }}
           />
