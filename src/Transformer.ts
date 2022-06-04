@@ -1,32 +1,39 @@
-import * as acorn from "acorn";
-import * as walk from "acorn-walk";
+import * as esprima from "esprima";
 
-function satelliteAnalyzer(holyBread: string): string {
-  return holyBread.length + "\n";
-}
+function Transformer(inputJs: string) {
+  var outputJs = inputJs;
 
-function Transformer(inputJs: any) {
-  var outputJs = "";
+  var ast = esprima.parseScript(inputJs, {
+    loc: true,
+    range: true,
+  });
+  ast.body.forEach((node) => {
+    switch (node.type) {
+      case "VariableDeclaration":
+        const variable = node.declarations[0];
 
-  // Iterating over every LoC
-  // var ast = acorn.parse(inputJs, { ecmaVersion: "latest" });
-  // walk.simple(ast, {
-  //   Program(node) {
-  //     console.log(node.);
-  //   },
-  // });
+        switch (variable.id.type) {
+          case "Identifier":
+            const variableIdentifier = variable.id.name;
+            const regex = new RegExp(variableIdentifier, "g");
+            outputJs = outputJs.replace(
+              regex,
+              "var_" +
+                variableIdentifier.substring(variableIdentifier.length - 4)
+            );
 
-  for (let token of acorn.tokenizer(inputJs, { ecmaVersion: "latest" })) {
-    // iterate over the tokens
-    console.log(token);
-  }
+            break;
 
-  var lines = inputJs.split(/\r\n|\n/);
-  for (var line = 0; line < lines.length - 1; line++) {
-    const cookedPorkchop = satelliteAnalyzer(lines[line]);
+          default:
+            break;
+        }
 
-    outputJs += cookedPorkchop;
-  }
+        break;
+
+      default:
+        break;
+    }
+  });
 
   return outputJs;
 }
