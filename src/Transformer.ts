@@ -1,23 +1,51 @@
 import * as esprima from "esprima";
-import { Statement, ModuleDeclaration, Directive } from "estree";
+import {
+  Statement,
+  ModuleDeclaration,
+  Directive,
+  SimpleLiteral,
+  RegExpLiteral,
+  BigIntLiteral,
+  Expression,
+} from "estree";
 
 function walk(
   ast: esprima.Program,
-  fn: (node: Directive | Statement | ModuleDeclaration) => void
+  fn: (
+    node:
+      | Directive
+      | Statement
+      | ModuleDeclaration
+      | SimpleLiteral
+      | RegExpLiteral
+      | BigIntLiteral
+  ) => void
 ) {
-  var stack = ast.body,
+  var stack: (
+      | Directive
+      | Statement
+      | ModuleDeclaration
+      | SimpleLiteral
+      | RegExpLiteral
+      | BigIntLiteral
+    )[] = ast.body,
     i,
     j,
     key,
     len,
-    node: Directive | Statement | ModuleDeclaration,
-    children;
+    node:
+      | Directive
+      | Statement
+      | ModuleDeclaration
+      | SimpleLiteral
+      | RegExpLiteral
+      | BigIntLiteral;
 
   for (i = 0; i < stack.length; i += 1) {
     node = stack[i];
 
     fn(node);
-
+    const expressions: Expression[] = [];
     switch (node.type) {
       case "ExpressionStatement":
         if (node.expression.type == "SequenceExpression") {
@@ -58,12 +86,61 @@ function walk(
         }
         break;
       case "BlockStatement":
-        children = node.body;
-        children.forEach((child) => stack.push(child));
+        {
+          const children = node.body;
+          children.forEach((child) => stack.push(child));
+        }
+        break;
+      case "WhileStatement":
+        {
+          const child = node.body;
+          stack.push(child);
+        }
+
+        break;
+      case "TryStatement":
+        {
+          const child = node.block;
+          stack.push(child);
+        }
+
+        break;
+      case "VariableDeclaration":
+        {
+          const declarations = node.declarations;
+          declarations.forEach((declaration) => {
+            if (declaration.init?.type === "BinaryExpression") {
+              expressions.push(declaration.init);
+            }
+          });
+        }
+
         break;
 
       default:
         break;
+    }
+
+    for (j = 0; j < expressions.length; j += 1) {
+      const expression = expressions[j];
+      if (expression.type === "BinaryExpression") {
+        expressions.push(expression.left);
+        expressions.push(expression.right);
+      }
+      if (expression.type === "UnaryExpression") {
+        expressions.push(expression.argument);
+      }
+      if (expression.type === "CallExpression") {
+        expression.arguments.forEach((argument) => {
+          if (argument.type === "Literal") {
+            console.log("lit", argument.raw);
+            stack.push(argument);
+          }
+          if (argument.type === "CallExpression") {
+            expressions.push(argument);
+          }
+        });
+      }
     }
   }
 }
@@ -75,35 +152,6 @@ function Transformer(inputJs: string) {
     loc: true,
     range: true,
   });
-  const baseVariables = [];
-  // ast.body.forEach((node) => {
-  //   switch (node.type) {
-  //     case "VariableDeclaration":
-  //       const variable = node.declarations[0];
-
-  //       switch (variable.id.type) {
-  //         case "Identifier":
-  //           const variableIdentifier = variable.id.name;
-  //           const regex = new RegExp(variableIdentifier, "g");
-  //           const finalVarName =
-  //             "var_" +
-  //             variableIdentifier.substring(variableIdentifier.length - 4);
-
-  //           outputJs = outputJs.replace(regex, finalVarName);
-  //           baseVariables.push(finalVarName);
-
-  //           break;
-
-  //         default:
-  //           break;
-  //       }
-
-  //       break;
-
-  //     default:
-  //       break;
-  //   }
-  // });
 
   walk(ast, (node) => {
     switch (node.type) {
@@ -124,6 +172,15 @@ function Transformer(inputJs: string) {
         }
 
         break;
+      case "Literal":
+        console.log(node.raw);
+
+        if (node.raw === "0x27a") debugger;
+        if (node.raw)
+          outputJs = outputJs.replace(
+            new RegExp(node.raw, "g"),
+            parseInt(node.raw, 16).toString()
+          );
 
       default:
         break;
